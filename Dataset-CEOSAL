@@ -1,0 +1,73 @@
+#HOMEWORK CEOSALARY
+library(foreign)
+#install.packages('e1071')
+library(e1071)
+#install.packages('haven')
+library(haven)
+#install.packages('ggplot2')
+library(ggplot2)
+###CEOSAL = read.dta("C:/Users/LeMark/Google Диск/Uni staff/Econometrics/DataSets/part2_CEOSAL.RData")
+CEOSAL = read.dta("http://fmwww.bc.edu/ec-p/data/wooldridge/ceosal2.dta")[,1:9]
+#First inspection
+length(CEOSAL$salary)
+###str(CEOSAL)
+summary(CEOSAL)
+#Medians
+median(CEOSAL$ceoten)
+#6
+median(CEOSAL$salary)
+#707
+#Compare with means
+mean(CEOSAL$ceoten)
+#7.954802
+mean(CEOSAL$salary)
+#865.8644
+skewness(CEOSAL$ceoten)
+#1.625796
+skewness(CEOSAL$salary)
+#2.973227
+#salary skewed more than ceoten
+#median(ceoten) < mean(CEOSAL$ceoten) => destribution of ceoten is rigth-skewed
+#median(salary) < mean(CEOSAL$salary) => destribution of salary is rigth-skewed
+#Create a logical vector which is TRUE at every location where 0 occurs
+sum(CEOSAL$ceoten == 0)
+#5 CEO's are in a 1st year
+cov(CEOSAL$salary, CEOSAL$grad)
+#-0.8821263
+#categorical var "grad" and a response var "salary" are negatively related
+cor(CEOSAL$profits, CEOSAL$mktval)
+#0.918128
+#vars "profits" and "mktval" are positively linear related
+#this value is close to 1
+cor.test(CEOSAL$profits, CEOSAL$mktval, method = c("pearson"))
+#p-value < 5% (p-value < 2.2e-16) so the correlation is significant
+#New Variables
+log(CEOSAL$salary)
+log(CEOSAL$sales)
+poly(CEOSAL$age, degree = 2)
+poly(CEOSAL$ceoten, degree = 2)
+CEOSAL$profits/CEOSAL$sales
+#Plots
+#Salary density
+ggplot(CEOSAL, aes(salary)) + geom_density(fill = "#0000ff")
+#Scatter plot salary
+scatter.smooth(y=CEOSAL$salary)
+scatter.smooth(x=CEOSAL$sales, y=CEOSAL$salary, main="salary ~ sales")
+scatter.smooth(x=log(CEOSAL$sales), y=log(CEOSAL$salary), main="salary ~ sales")
+#Linear regression
+lm(salary~ceoten, data = CEOSAL)
+#Intercept at 772.43 and slope = 11.75
+summary(lm(salary~sales, data = CEOSAL))
+#Intercept at 7.364 and slope = 0.036
+summary(lm(salary~log(sales), data = CEOSAL))
+#Intercept at -415.1 and slope = 177.1
+summary(lm(log(salary)~sales, data = CEOSAL))
+#Intercept at 6.439 and slope = 4.079e-05
+summary(lm(log(salary)~log(sales), data = CEOSAL))
+#Intercept at 4.9611, and slope = 0.2243 
+#log-log Model
+#by 1% change in sales, salary changes by 0.22%
+#the impact of the sales is positive but becomes smaller as the value increases
+
+
+
