@@ -1,73 +1,69 @@
-#HOMEWORK CEOSALARY
+#CEOSALARY
 library(foreign)
-#install.packages('e1071')
+install.packages('e1071')
 library(e1071)
-#install.packages('haven')
+install.packages('haven')
 library(haven)
-#install.packages('ggplot2')
-library(ggplot2)
-###CEOSAL = read.dta("C:/Users/LeMark/Google Диск/Uni staff/Econometrics/DataSets/part2_CEOSAL.RData")
+install.packages('ggplot2')
+library(ggplot2) 
 CEOSAL = read.dta("http://fmwww.bc.edu/ec-p/data/wooldridge/ceosal2.dta")[,1:9]
+attach(CEOSAL)
 #First inspection
-length(CEOSAL$salary)
-###str(CEOSAL)
+length(salary)
 summary(CEOSAL)
 #Medians
-median(CEOSAL$ceoten)
-#6
-median(CEOSAL$salary)
-#707
+median(ceoten)
+median(salary)
 #Compare with means
-mean(CEOSAL$ceoten)
-#7.954802
-mean(CEOSAL$salary)
-#865.8644
-skewness(CEOSAL$ceoten)
-#1.625796
-skewness(CEOSAL$salary)
-#2.973227
+mean(ceoten)
+mean(salary)
+skewness(ceoten)
+skewness(salary)
 #salary skewed more than ceoten
-#median(ceoten) < mean(CEOSAL$ceoten) => destribution of ceoten is rigth-skewed
-#median(salary) < mean(CEOSAL$salary) => destribution of salary is rigth-skewed
+#median(ceoten) < mean(ceoten) => destribution of ceoten is rigth-skewed
+#median(salary) < mean(salary) => destribution of salary is rigth-skewed
 #Create a logical vector which is TRUE at every location where 0 occurs
-sum(CEOSAL$ceoten == 0)
-#5 CEO's are in a 1st year
-cov(CEOSAL$salary, CEOSAL$grad)
-#-0.8821263
+sum(ceoten == 0)
+#5 CEO's are in their 1st year
+max(ceoten)
+#37 years is the logest tenure for the CEO
+cov(salary, grad)
+#cov has '-' sign
 #categorical var "grad" and a response var "salary" are negatively related
-cor(CEOSAL$profits, CEOSAL$mktval)
-#0.918128
+cor(profits, mktval)
 #vars "profits" and "mktval" are positively linear related
-#this value is close to 1
-cor.test(CEOSAL$profits, CEOSAL$mktval, method = c("pearson"))
+#this value is close to 1 (0.918128)
+cor.test(profits, mktval, method = c("pearson"))
 #p-value < 5% (p-value < 2.2e-16) so the correlation is significant
 #New Variables
-log(CEOSAL$salary)
-log(CEOSAL$sales)
-poly(CEOSAL$age, degree = 2)
-poly(CEOSAL$ceoten, degree = 2)
-CEOSAL$profits/CEOSAL$sales
-#Plots
-#Salary density
+salaryLog = log(salary)
+salesLog = log(sales)
+ageQuad = poly(age, degree = 2)
+ceotenQuad = poly(ceoten, degree = 2)
+profOverSls = profits/sales
+#Graphical illustration
+#Plot salary w density plot
 ggplot(CEOSAL, aes(salary)) + geom_density(fill = "#0000ff")
-#Scatter plot salary
-scatter.smooth(y=CEOSAL$salary)
-scatter.smooth(x=CEOSAL$sales, y=CEOSAL$salary, main="salary ~ sales")
-scatter.smooth(x=log(CEOSAL$sales), y=log(CEOSAL$salary), main="salary ~ sales")
+#Scatter plots
+scatter.smooth(x=sales, y=salary, main="salary ~ sales")
+scatter.smooth(x=salesLog, y=salaryLog, main="salary ~ sales")
 #Linear regression
 lm(salary~ceoten, data = CEOSAL)
 #Intercept at 772.43 and slope = 11.75
 summary(lm(salary~sales, data = CEOSAL))
 #Intercept at 7.364 and slope = 0.036
-summary(lm(salary~log(sales), data = CEOSAL))
+summary(lm(salary~salesLog, data = CEOSAL))
 #Intercept at -415.1 and slope = 177.1
-summary(lm(log(salary)~sales, data = CEOSAL))
+summary(lm(salaryLog~sales, data = CEOSAL))
 #Intercept at 6.439 and slope = 4.079e-05
-summary(lm(log(salary)~log(sales), data = CEOSAL))
+summary(lm(salaryLog~salesLog, data = CEOSAL))
 #Intercept at 4.9611, and slope = 0.2243 
 #log-log Model
 #by 1% change in sales, salary changes by 0.22%
 #the impact of the sales is positive but becomes smaller as the value increases
-
-
+#Compare models
+var(salaryLog, salesLog)
+cov(salaryLog, salesLog)
+cor(salaryLog, salesLog)
+cov2cor(V)
 
