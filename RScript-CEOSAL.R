@@ -5,11 +5,11 @@ library(e1071)
 install.packages('haven')
 library(haven)
 install.packages('ggplot2')
-library(ggplot2) 
-CEOSAL = read.dta("http://fmwww.bc.edu/ec-p/data/wooldridge/ceosal2.dta")[,1:9]
+library(ggplot2)
+load('part2_CEOSAL.Rdata')
 attach(CEOSAL)
 #First inspection
-length(salary)
+n = length(salary)
 summary(CEOSAL)
 #Medians
 median(ceoten)
@@ -40,7 +40,7 @@ salaryLog = log(salary)
 salesLog = log(sales)
 ageQuad = poly(age, degree = 2)
 ceotenQuad = poly(ceoten, degree = 2)
-profOverSls = profits/sales
+profOverSls = (profits/sales)*100
 #Graphical illustration
 #Plot salary w density plot
 ggplot(CEOSAL, aes(salary)) + geom_density(fill = "#0000ff")
@@ -48,11 +48,15 @@ ggplot(CEOSAL, aes(salary)) + geom_density(fill = "#0000ff")
 scatter.smooth(x=sales, y=salary, main="salary ~ sales")
 scatter.smooth(x=salesLog, y=salaryLog, main="salary ~ sales")
 #Linear regression
+#2.6 
+#Estimate simple regression model
 lm(salary~ceoten, data = CEOSAL)
+slopeCeoten = cov(salary,ceoten)/var(ceoten)
+interceptCeoten = mean(salary) - (slope * mean(ceoten))
 #Intercept at 772.43 and slope = 11.75
-summary(lm(salary~sales, data = CEOSAL))
+summary(lm(salary~sales, data = CEOSAL)) 
 #Intercept at 7.364 and slope = 0.036
-summary(lm(salary~salesLog, data = CEOSAL))
+summary(lm(salary~salesLog, data = CEOSAL)) #1% incr of sales 1772 salary incr
 #Intercept at -415.1 and slope = 177.1
 summary(lm(salaryLog~sales, data = CEOSAL))
 #Intercept at 6.439 and slope = 4.079e-05
@@ -61,9 +65,9 @@ summary(lm(salaryLog~salesLog, data = CEOSAL))
 #log-log Model
 #by 1% change in sales, salary changes by 0.22%
 #the impact of the sales is positive but becomes smaller as the value increases
-#Compare models
-var(salaryLog, salesLog)
-cov(salaryLog, salesLog)
-cor(salaryLog, salesLog)
-cov2cor(V)
-
+#Covariance matrix
+model_covmatr <- lm(salaryLog~salesLog)
+slope = cov(salaryLog,salesLog)/var(salesLog)
+intercept = mean(salaryLog) - slope * mean(salesLog)
+summary(lm(salaryLog ~ salesLog))
+sqrt(diag(vcov(lm(salaryLog ~ salesLog))))
