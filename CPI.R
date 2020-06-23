@@ -42,6 +42,12 @@ data %>%
 #Trend existence violates stationarity
 #1st moment isn't constant, it violates stationarity
 
+#Check the existence of trend with the regression
+fit_CPI <- lm(CPI ~ date, data = data)
+summary(fit_CPI)
+#Linear trend coefficient is significant and p-value is < 2.2e-16
+#Therefore we have a linear trend
+
 # -----------------------------------------------------------------------------
 
 #Remove the trend
@@ -160,6 +166,7 @@ LBtest <- ar1 %>%
   residuals() %>% 
   features(features = ljung_box, lag = 10) %>%
   print(LBtest)
+#p-value is 0.0000265, successfully rejected H0
 
 # -----------------------------------------------------------------------------
 
@@ -198,14 +205,18 @@ LBtest2 <- arma %>%
   features(features = ljung_box, lag = 10) %>%
 print(LBtest2)
 LBtest2[16,]
+#p-value is 0.964. Failed to reject the H0. Autocorrelation exists.
 
 # -----------------------------------------------------------------------------
 
-#Test for normality
+#Test for normality, H0 - data is normally distributed
 data %>%
   select(d1log_CPI) %>%
   as.ts() %>%
-  jarque.bera.test() 
+  jarque.bera.test()
+#Test statistic is 3844.1 and p-value is < 2.2e-16. Reject the H0.
+#Data have skewness and kurtosis that don't match normal distribution
+
 #Find out the best model with ML:
 glance(arma)[which.max(glance(arma)[["log_lik"]]), ]
  
