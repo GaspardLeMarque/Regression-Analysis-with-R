@@ -2,20 +2,25 @@
 setwd("D:/R working dir")
 y=function(){dev.new();x=par(no.readonly=T);dev.off();x}
 par(y());options(scipen=0);dev.off();rm(list=ls())
+Sys.setenv(LANG = "en")
 
-library("rstudioapi")
 library("dplyr")
 library("tidyverse")
+library("ggplot2")
 library("tsibble")
 library("lubridate")
-library("fable")
+library("fable") #TS Forecasting Models
 library("readxl")
 library("dynlm")
 library("reshape2")
 library("car")
 library("vars")
 library("systemfit")
-library("lmtest")
+library("lmtest") #Granger Causality test
+library("magrittr") 
+library("car") # Applied Regression
+library("urca") #Unit Root test 
+
 
 #Data
 data <- read_excel("data_sheet2.xlsx")
@@ -37,6 +42,24 @@ data %>%
   labs(subtitle = "CPI(red) FEDFUNDS(green) UNRATE(blue) ")
 #From glance CPI isn't stationary, but FEDFUNDS and UNRATE are stationary
 
+#As an option, can plot all 3 TS separately
+data %>%
+  autoplot(vars(CPI)) +
+  geom_line(col = "#e30e0e", size = 0.5) +
+  xlab("Year") + ylab("CPI")
+
+data %>%
+  autoplot(vars(FEDFUNDS)) +
+  geom_line(col = "#e30e0e", size = 0.5) +
+  xlab("Year") + ylab("FEDFUNDS")
+
+data %>%
+  autoplot(vars(UNRATE)) +
+  geom_line(col = "#e30e0e", size = 0.5) +
+  xlab("Year") + ylab("UNRATE")
+
+# -----------------------------------------------------------------------------
+
 #Check for stationarity using regression
 #CPI
 fit_trend <- lm(CPI ~ date, data = data)
@@ -51,22 +74,34 @@ fit_trend <- lm(UNRATE ~ date, data = data)
 summary(fit_trend)
 #There's a trend in UNRATE, coefficient is insignificant at the 5% level. 
 #Series is stationary
+#In general, stationarity check should be done before making tests and inference
+
+#Check for stationarity using Unit Root test
+#H0: stochastic trend
+summary(ur.df(data$CPI, selectlags = "BIC", type ="trend"))
+#t-statistic = -3.915, CPI is trend-stationary
+summary(ur.df(data$FEDFUNDS, selectlags = "BIC", type ="trend"))
+#t-statistic = -3.3275, FEDFUNDS is trend-stationary
+summary(ur.df(data$UNRATE, selectlags = "BIC", type ="trend"))
+#t-statistic = -1.2859, UNRATE is trend-stationary
 
 # -----------------------------------------------------------------------------
 
-#Transform data
+#Transform data to Time Series objects
 data <- data %>%
   mutate(CPI = difference(log(CPI), 12) * 100) %>%
   tail(-12)
 
 data <- data %>%
   mutate(
-    CPI = ts(CPI, frequency = 12),
-    FEDFUNDS = ts(FEDFUNDS, frequency = 12),
-    UNRATE = ts(UNRATE, frequency = 12)
+    CPI = ts(CPI, start = 1961, frequency = 12),
+    FEDFUNDS = ts(FEDFUNDS, start = 1961, frequency = 12),
+    UNRATE = ts(UNRATE, start = 1961, frequency = 12)
   ) 
+#Check the class of data
+class(data)
 
-#Plot with ts
+#Plot transformed data
 data %>%
   ggplot() +
   geom_line(aes(date, CPI), col = "#FF0000", size = 1) +
@@ -78,9 +113,29 @@ data %>%
 
 # -----------------------------------------------------------------------------
 
-#Select and estimate the "reduced" form VAR model
+#Select the best fitted VAR model and estimate it
 VAR <- as.data.frame(data[, c("CPI", "FEDFUNDS", "UNRATE")])
-VARselect(VAR, lag.max = 12, type = c("const"))
+#Find the lag structure
+#The VAR system should be stable and without autocorrelation in the residuals
+VARselect(VAR, lag.max = 4, type = c("const"))
 
-fit_s <- vars::VAR(VAR, p = 1, type = "const") 
-fit_s
+fit2 <- vars::VAR(VAR, p = 3, type = "const") 
+fit2
+
+residuals2 <- lapply(fit2$var, residuals)
+
+#Ljung-Box test with a lag = 12
+box_tests <- lapply(residuals2, function(x) Box.test(x, lag = 12, type = "Ljung-Box"))
+
+box_tests$CPI 
+box_tests$UNRATE 
+box_tests$FEDFUNDS 
+#Autocorrelation still exists
+
+# Ljung-Box test with a lag = 3
+box_tests <- lapply(residuals2, function(x) Box.test(x, lag = 3, type = "Ljung-Box"))
+
+box_tests$CPI
+box_tests$UNRATE 
+box_tests$FEDFUNDS
+#With 3 lags there is no Autocorrelation
