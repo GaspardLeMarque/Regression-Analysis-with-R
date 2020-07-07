@@ -21,7 +21,6 @@ library("magrittr")
 library("car") # Applied Regression
 library("urca") #Unit Root test 
 
-
 #Data
 data <- read_excel("data_sheet2.xlsx")
 
@@ -118,24 +117,47 @@ VAR <- as.data.frame(data[, c("CPI", "FEDFUNDS", "UNRATE")])
 #Find the lag structure
 #The VAR system should be stable and without autocorrelation in the residuals
 VARselect(VAR, lag.max = 4, type = c("const"))
+fit_s <- vars::VAR(VAR, p = 3, type = "const") 
 
-fit2 <- vars::VAR(VAR, p = 3, type = "const") 
-fit2
+#Doing lapply() instead of the loop
+residuals2 <- lapply(fit_s$var, residuals)
 
-residuals2 <- lapply(fit2$var, residuals)
+#Ljung-Box test with a lag order = 12
+#H0: no Autocorrelation
+box_tests1 <- lapply(residuals2, function(x) Box.test(x, lag = 12, type = "Ljung-Box"))
 
-#Ljung-Box test with a lag = 12
-box_tests <- lapply(residuals2, function(x) Box.test(x, lag = 12, type = "Ljung-Box"))
-
-box_tests$CPI 
-box_tests$UNRATE 
-box_tests$FEDFUNDS 
+box_tests1$CPI 
+box_tests1$UNRATE 
+box_tests1$FEDFUNDS 
 #Autocorrelation still exists
 
-# Ljung-Box test with a lag = 3
-box_tests <- lapply(residuals2, function(x) Box.test(x, lag = 3, type = "Ljung-Box"))
+#Ljung-Box test with a lag order = 3
+box_tests2 <- lapply(residuals2, function(x) Box.test(x, lag = 3, type = "Ljung-Box"))
 
-box_tests$CPI
-box_tests$UNRATE 
-box_tests$FEDFUNDS
-#With 3 lags there is no Autocorrelation
+box_tests2$CPI
+box_tests2$UNRATE 
+box_tests2$FEDFUNDS
+#With 3 lags there is no Autocorrelation in the UNRATE, 
+#CPI and FEDFUNDS still have it
+
+# -----------------------------------------------------------------------------
+
+#Re-estimate the VAR model after increasing the order by 1
+fit3 <- vars::VAR(VAR, p = 4, type = "const")
+residuals3 <- lapply(fit3$var, residuals)
+
+#Ljung-Box test with a lag order = 12
+box_tests3 <- lapply(residuals3, function(x) Box.test(x, lag = 12, type = "Ljung-Box"))
+
+box_tests3$CPI 
+box_tests3$UNRATE 
+box_tests3$FEDFUNDS
+#Still have Autocorrelation in all 3 cases
+
+#Ljung-Box test with a lag order = 3
+box_tests4 <- lapply(residuals3, function(x) Box.test(x, lag = 3, type = "Ljung-Box"))
+
+box_tests4$CPI
+box_tests4$UNRATE
+box_tests4$FEDFUNDS
+#No Autocorrelation in all 3 cases
