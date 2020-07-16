@@ -1,3 +1,20 @@
+#Preamble
+setwd("D:/R working dir")
+y=function(){dev.new();x=par(no.readonly=T);dev.off();x}
+par(y());options(scipen=0);dev.off();rm(list=ls())
+Sys.setenv(LANG = "en")
+
+library("data.table")
+library("lubridate")
+library("tidyverse")
+library("fabletools") #TS analysis
+library("feasts") #autoplot()
+library("ggplot2")
+library("dplyr")
+library("tsibble")
+library("dynlm")
+theme_set(theme_light())
+
 #Data
 data <- fread("MPdata.csv")
 names(data) <- c("Date", "FEDFUNDS", "INFLATION", "GDP")
@@ -80,3 +97,47 @@ data %>%
 #In 2004-2005 period the interest rate should have been higher.
 #In 2009-2010 period the rate should have been lower, but not significantly.
 #In 2012-2015 period the rate should have been significantly higher.
+
+#---------------------------------------------------------------------------
+
+#Run separate regressions on 2 intervals
+#Time interval before 1979 Q2
+intval1 <- as.data.frame(data[c(1:125), c(1:3, 5)])
+summary(fit2 <- dynlm(FEDFUNDS ~ INFLATION + OutputGap, data = intval1))
+#the linear trend coefficients are significant at the 0.1% significance level
+#When the inflation increases by 1 the rate increases by 0.72
+#When the Output Gap increases by 1 the rate increases by 0.11
+#The results are consistent with the Taylor rule
+#However coefficients are smaller than ones for the whole period
+
+#Time interval before 1987 Q3
+intval2 <- as.data.frame(data[c(158:271), c(1:3, 5)])
+summary(fit2 <- dynlm(FEDFUNDS ~ INFLATION + OutputGap, data = intval2))
+#Inflation's coefficient is significant at the 0.1% level
+#OutputGap's coefficient is significant at the 5% level
+#When the inflation increases by 1 the rate increases by 1,27
+#When the Output Gap increases by 1 the rate increases by 0.68
+#The results are consistent with the Taylor rule
+#Also coefficients are larger than ones for the previous period
+
+#---------------------------------------------------------------------------
+
+#Time interval 1970s and inflation control
+intval3 <- as.data.frame(data[c(88:127), c(1:3, 5)])
+intval3 <- as_tsibble(intval3, index = Date)
+intval3 %>%
+  ggplot() +
+  geom_line(aes(Date, FEDFUNDS, color = "Federal funds rate"), size = 0.5) +
+  geom_line(aes(Date, INFLATION, color = "Inflation"), size = 0.5) +
+  xlab("Years") + ylab("%") +
+  ggtitle("Interest Rate and Inflation") +
+  scale_colour_manual("", 
+                      values = c("#0000FF", "#FF0000")) +
+  theme(legend.position = c(.88, .98),
+        legend.justification = c("right", "top"),
+        plot.title = element_text(hjust = 0.5))
+#From the glance inflation after 1975 was diminished by CB's actions
+
+summary(fit2 <- dynlm(FEDFUNDS ~ INFLATION + OutputGap, data = intval3))
+#When the Output Gap increases by 1 the rate decreases by 0.02
+#Correlation between Rate and Inflation is still consistent with the Taylor Rule
