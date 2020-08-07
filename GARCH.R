@@ -196,3 +196,127 @@ Box.test(residstdARCH5^2, lag = 10, type = "Ljung-Box")
 #it's gonna be a EGARCH(1,1) model, which is better than sGARCH
 #According to D.B. Nelson. Conditional heteroskedasticity in asset returns: 
 #A new approach. Econometrica, 59(2):347{70, 1991.
+
+#----------------------------------------------------------
+
+#Estimate a EGARCH(1,1) model
+specEGARCH11 <- ugarchspec(
+  mean.model = list(armaOrder = c(5, 1)),
+  variance.model = list(model = "eGARCH", garchOrder = c(1, 1)),
+  distribution.model = "norm"
+)
+
+EGARCH11 <- ugarchfit(specEGARCH11, na.omit(data$Return))
+EGARCH11
+#AR part shows that an increase in returns by 1% 5 days ago,
+#leads to a decrease by 3.5%.
+#Constant term in the AR is positive and insignificant
+#Beta shows that 98% of previous period conditional variance comes to this period
+#Alpha shows that -8.9% of shock from previous period comes to this period
+#AR1, MA1 and all terms in the EGARCH part are significant
+#Constant term in a variance part is positive
+#This TS is weakly efficient
+
+#Sum up the alphas to check the persistence of the conditional variance term
+sum(EGARCH11@fit$matcoef[9:11,1]) 
+#1.02 > 1 => conditional variance is more persistent than in ARCH model
+#But the fact that the value > 1, 
+#suggests that there's a poor conditional mean specification 
+
+#Find standardized residuals for a heteroskedasticity test
+#Repeat the procedure of finding the standardized residuals
+residEGARCH11 <- resid(EGARCH11@fit)
+condvarEGARCH11 <- c(EGARCH11@fit$var)
+residstdEGARCH11 <- residEGARCH11/I(sqrt(condvarEGARCH11))
+
+#Check the form of the distribution
+kurtosis(residstdEGARCH11)
+#Kurtosis = 6.330655 > 3 => excess kurtosis
+skewness(residstdEGARCH11)
+#Skewness = -0.3024513
+#tail is larger on the left side of the distribution
+#Kurtosis is higher in this model, but the skewness is almost the same
+
+#Ljung-Box test 
+Box.test(residstdEGARCH11, lag = 10, type = "Ljung-Box")
+#p-value = 0.9529, Failed to reject the H0
+#no autocorrelation in the 1st moment after the 10th lag
+#p-value increased in comparison with the previous test
+
+#Test for conditional heteroskedasticity
+Box.test(residstdEGARCH11^2, lag = 10, type = "Ljung-Box") 
+#p-value = 0.965, Failed to reject the H0
+#Obtained a much bigger p-value than in the ARCH test
+#GARCH model shows better results
+#no autocorrelation in the 2nd moment
+#conditional heteroskedasticity doesn't matter = no ARCH effects
+#There is no necessity to include higher order (G)ARCH terms 
+
+#----------------------------------------------------------
+
+#Estimate a GJR-GARCH(1,1) model
+specGJRGARCH11 <- ugarchspec(
+  mean.model = list(armaOrder = c(5, 1)),
+  variance.model = list(model = "gjrGARCH", garchOrder = c(1, 1)),
+  distribution.model = "norm"
+)
+
+GJRGARCH11 <- ugarchfit(specGJRGARCH11, na.omit(data$Return))
+GJRGARCH11
+#AR part shows that an increase in returns by 1% 5 days ago,
+#leads to a decrease by 3.9%.
+#Constant term in the AR is positive and insignificant
+#Beta shows that 89% of previous period conditional variance comes to this period
+#Alpha shows that 2.7% of shock from previous period comes to this period
+#Only terms in the GARCH part are significant
+#Constant term in a variance part is positive and significant
+
+#Sum up the alphas to check the persistence of the conditional variance term
+sum(GJRGARCH11@fit$matcoef[9:11,1]) 
+#1.04 > 1 => conditional variance is more persistent than in EGARCH model
+#But again there's a poor conditional mean specification
+
+#Find standardized residuals for a heteroskedasticity test
+#Repeat the procedure of finding the standardized residuals
+residGJRGARCH11 <- resid(GJRGARCH11@fit)
+condvarGJRGARCH11 <- c(GJRGARCH11@fit$var)
+residstdGJRGARCH11 <- residGJRGARCH11/I(sqrt(condvarGJRGARCH11))
+
+#Check the form of the distribution
+kurtosis(residstdGJRGARCH11)
+#Kurtosis = 5.987394 > 3 => excess kurtosis
+skewness(residstdGJRGARCH11)
+#Skewness = -0.2996382
+#tail is larger on the left side of the distribution
+#Kurtosis is lower in this model, the skewness is again closer to the ARCH model
+
+#Ljung-Box test 
+Box.test(residstdGJRGARCH11, lag = 10, type = "Ljung-Box")
+#p-value = 0.9826, Failed to reject the H0
+#no autocorrelation in the 1st moment after the 10th lag
+#p-value increased even more in comparison with the previous test
+
+#Test for conditional heteroskedasticity
+Box.test(residstdGJRGARCH11^2, lag = 10, type = "Ljung-Box") 
+#p-value = 0.9868, Failed to reject the H0
+#Also a much bigger p-value than in the EGARCH test
+#Now p-value is almost 1 which is a more confident result
+
+#LB test shows that GJR-GARCH is the best model for this stochastic process
+#However the overall significance of variance terms in EGARCH is better
+#EGARCH shows more persistence (0.98 > 0.90), 
+#but the betas < 1 in both cases => stationary conditional variance
+
+#Leverage effect occurs only in the EGARCH
+GJRGARCH11@fit$matcoef[9,1] #alpha = 0.02767551
+EGARCH11@fit$matcoef[9,1] #alpha = -0.08959311
+#So in case of the negative shock EGARCH shows the bigger value
+
+#Negative shock
+-1*(EGARCH11@fit$matcoef[9,1]) + EGARCH11@fit$matcoef[11,1] #0.2150036
+-1*(GJRGARCH11@fit$matcoef[9,1]) + GJRGARCH11@fit$matcoef[11,1] #0.08730312
+
+#Positive shock
+EGARCH11@fit$matcoef[9,1] + EGARCH11@fit$matcoef[11,1] #0.03581738
+GJRGARCH11@fit$matcoef[9,1] + GJRGARCH11@fit$matcoef[11,1] #0.1426541
+#It seems that in GJRGARCH we have a higher volatility after a positive shock
