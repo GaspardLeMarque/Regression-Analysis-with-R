@@ -135,7 +135,7 @@ fit %>%
 
 #----------------------------------------------------------
 
-#5.Find another linear model, try ARCH-ARIMA model
+#Find another linear model, try ARCH-ARIMA model
 acf(data$Return, lag.max=30) 
 pacf(data$Return, lag.max=30)
 #ACF,PACF suggest to use ARIMA(5,0,1) and ARCH(5,0)
@@ -161,7 +161,7 @@ sum(ARCH5@fit$matcoef[9:13,1])
 #0.77 < 1 => conditional variance is persistent
 #There's no non-stationary conditional variance
 
-#Find standardized residuals for a heteroskedasticity test
+#Find standardized residuals for a heteroscedasticity test
 #Residuals
 residARCH5 <- resid(ARCH5@fit)
 
@@ -194,7 +194,7 @@ Box.test(residstdARCH5^2, lag = 10, type = "Ljung-Box")
 #For example, ARMA(5,5)-GARCH(2,2)  
 #However it doesn't make sense, because in the next step 
 #it's gonna be a EGARCH(1,1) model, which is better than sGARCH
-#According to D.B. Nelson. Conditional heteroskedasticity in asset returns: 
+#According to D.B. Nelson. Conditional heteroscedasticity in asset returns: 
 #A new approach. Econometrica, 59(2):347{70, 1991.
 
 #----------------------------------------------------------
@@ -223,7 +223,7 @@ sum(EGARCH11@fit$matcoef[9:11,1])
 #But the fact that the value > 1, 
 #suggests that there's a poor conditional mean specification 
 
-#Find standardized residuals for a heteroskedasticity test
+#Find standardized residuals for a heteroscedasticity test
 #Repeat the procedure of finding the standardized residuals
 residEGARCH11 <- resid(EGARCH11@fit)
 condvarEGARCH11 <- c(EGARCH11@fit$var)
@@ -243,13 +243,13 @@ Box.test(residstdEGARCH11, lag = 10, type = "Ljung-Box")
 #no autocorrelation in the 1st moment after the 10th lag
 #p-value increased in comparison with the previous test
 
-#Test for conditional heteroskedasticity
+#Test for conditional heteroscedasticity
 Box.test(residstdEGARCH11^2, lag = 10, type = "Ljung-Box") 
 #p-value = 0.965, Failed to reject the H0
 #Obtained a much bigger p-value than in the ARCH test
 #GARCH model shows better results
 #no autocorrelation in the 2nd moment
-#conditional heteroskedasticity doesn't matter = no ARCH effects
+#conditional heteroscedasticity doesn't matter = no ARCH effects
 #There is no necessity to include higher order (G)ARCH terms 
 
 #----------------------------------------------------------
@@ -276,7 +276,7 @@ sum(GJRGARCH11@fit$matcoef[9:11,1])
 #1.04 > 1 => conditional variance is more persistent than in EGARCH model
 #But again there's a poor conditional mean specification
 
-#Find standardized residuals for a heteroskedasticity test
+#Find standardized residuals for a heteroscedasticity test
 #Repeat the procedure of finding the standardized residuals
 residGJRGARCH11 <- resid(GJRGARCH11@fit)
 condvarGJRGARCH11 <- c(GJRGARCH11@fit$var)
@@ -296,7 +296,7 @@ Box.test(residstdGJRGARCH11, lag = 10, type = "Ljung-Box")
 #no autocorrelation in the 1st moment after the 10th lag
 #p-value increased even more in comparison with the previous test
 
-#Test for conditional heteroskedasticity
+#Test for conditional heteroscedasticity
 Box.test(residstdGJRGARCH11^2, lag = 10, type = "Ljung-Box") 
 #p-value = 0.9868, Failed to reject the H0
 #Also a much bigger p-value than in the EGARCH test
@@ -319,4 +319,41 @@ EGARCH11@fit$matcoef[9,1] #alpha = -0.08959311
 #Positive shock
 EGARCH11@fit$matcoef[9,1] + EGARCH11@fit$matcoef[11,1] #0.03581738
 GJRGARCH11@fit$matcoef[9,1] + GJRGARCH11@fit$matcoef[11,1] #0.1426541
-#It seems that in GJRGARCH we have a higher volatility after a positive shock
+#It seems that in GJRGARCH we have the higher volatility after positive shock
+
+#----------------------------------------------------------
+
+#Transform data to 2 separate ts() objects 
+TSReturn <- ts(data$Return, start = 2010, frequency = 252)
+TSClose <- ts(data$Close, start = 2010, frequency = 252)
+TSdate <- seq(yearquarter("2010 Q1"), length.out = 40, by = 1) 
+
+AvgTSReturn <- tempdisagg::ta(TSReturn, conversion = "average", to = "quarterly")
+AvgTSClose <- tempdisagg::ta(TSClose, conversion = "average", to = "quarterly")
+
+#New data frame
+AvgDF <- data.frame(TSdate, AvgTSClose, AvgTSReturn)
+names(AvgDF) <- c("Date", "Close", "Return")
+
+
+#----------------------------------------------------------
+
+#Estimate an ARIMA(2,0,1) model using the quarterly time series
+AvgDF <- as_tsibble(AvgDF, index = "Date")
+fit2 <- AvgDF %>% 
+  model(arma21 = ARIMA(Return ~ 1 + pdq(2, 0, 1) + PDQ(0, 0, 0)))
+
+fit2 %>%
+  augment() %>%
+  features(.resid, ljung_box, lag = 10)
+#p-value = 0.601, Failed to reject the H0 => no autocorrelation
+
+#Squared residuals heteroscedasticity test
+fit2 %>%
+  augment() %>%
+  features(.resid^2, ljung_box, lag = 10)
+#p-value = 0.165, Failed to reject the H0 => no autocorrelation
+#However, p-value is small, so we are rejecting autocorrelation 
+#(and heteroscedasticity) with low level of confidence
+#Theoretical appendix: 
+#Temporal aggregation would help to make ARCH effects hardly noticeable
