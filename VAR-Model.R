@@ -166,7 +166,7 @@ VAR <- as.data.frame(data[, c("CPI", "FEDFUNDS", "UNRATE")])
 #Find the lag structure
 #The VAR system should be stable and without autocorrelation in the residuals
 VARselect(VAR, lag.max = 4, type = c("const"))
-fit_s <- vars::VAR(VAR, p = 3, type = "const") 
+fit_s <- VAR(VAR, p = 3, type = "const") 
 
 #Doing lapply() instead of the loop
 residuals2 <- lapply(fit_s$var, residuals)
@@ -210,3 +210,46 @@ box_tests4$CPI
 box_tests4$UNRATE
 box_tests4$FEDFUNDS
 #No Autocorrelation in all 3 cases
+
+# -----------------------------------------------------------------------------
+
+#Impulse-response functions
+fit4 <- VAR(data[, c("CPI", "UNRATE", "FEDFUNDS")], p = 4, type = "const")
+roots(fit4) # all eigenvalues of the companion matrix A have modulus < 1
+
+irfs <- irf(fit4, impulse="FEDFUNDS", n.ahead = 100, ci = 0.95, runs = 100)
+irfs1 <- irf(fit4, impulse="UNRATE", n.ahead = 20, ci = 0.95, runs = 100)
+irfs2 <- irf(fit4, impulse="CPI", n.ahead = 20, ci = 0.95, runs = 100)
+plot(irfs)
+plot(irfs1)
+plot(irfs2)                    
+#1.Stationarity
+#FEDFUNDS:
+#All 3 die out = stationary system
+#UNRATE:
+#All 3 don't die explicitly 
+#CPI:
+#Only UNRATE dies out
+
+#2.Restrictions
+#FEDFUNDS:
+#UNRATE and CPI start near 0 = after shock in FEDFUNDS, they can't instantly change  
+#UNRATE:
+#FEDFUNDS and CPI start near 0
+#CPI:
+#FEDFUNDS and UNRATE start near 0
+
+#3.Persistence (Response of the Impulse X to the shock in X itself)
+#FEDFUNDS: Lower confidence bound is higher than 0 line
+#UNRATE: Lower confidence bound is higher than 0 line, but not significantly
+#CPI: Lower confidence bound is higher than 0 line
+
+#4.Size of the initial shock
+#FEDFUNDS ~= 0.4
+#UNRATE ~= 0.2
+#CPI ~= 0.3
+
+#5.Peak responses
+#FEDFUNDS: one shock at itself at first periods
+#UNRATE: no significant shocks
+#CPI: no significant shocks                     
